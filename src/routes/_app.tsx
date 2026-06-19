@@ -1,8 +1,17 @@
 import { createFileRoute, Outlet, Link, useRouter, useLocation } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth";
+import { useData } from "@/lib/data-context";
+import type { Currency } from "@/lib/types";
 import { LayoutDashboard, ListChecks, Wallet, BarChart3, LogOut, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/_app")({
   component: AppLayout,
@@ -17,6 +26,7 @@ const nav = [
 
 function AppLayout() {
   const { user, loading, logout } = useAuth();
+  const { data, setCurrency } = useData();
   const router = useRouter();
   const location = useLocation();
 
@@ -55,7 +65,9 @@ function AppLayout() {
                 to={item.to}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                  active ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  active
+                    ? "bg-primary/15 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
                 <Icon className="h-4 w-4" />
@@ -69,8 +81,23 @@ function AppLayout() {
             <p className="font-medium">{user.username}</p>
             <p className="truncate text-xs text-muted-foreground">{user.email}</p>
           </div>
+          <div className="mb-2 space-y-1">
+            <p className="px-1 text-xs font-medium text-muted-foreground">Divisa</p>
+            <Select value={data.currency} onValueChange={(value) => setCurrency(value as Currency)}>
+              <SelectTrigger className="h-9 bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="MXN">MXN — Pesos</SelectItem>
+                <SelectItem value="USD">USD — Dólares</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <button
-            onClick={() => { logout(); router.navigate({ to: "/auth" }); }}
+            onClick={() => {
+              logout();
+              router.navigate({ to: "/auth" });
+            }}
             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <LogOut className="h-4 w-4" /> Cerrar sesión
@@ -84,9 +111,26 @@ function AppLayout() {
           <TrendingUp className="h-5 w-5 text-primary" />
           <span className="font-display font-semibold">Bet Tracker</span>
         </div>
-        <button onClick={() => { logout(); router.navigate({ to: "/auth" }); }} className="text-sm text-muted-foreground">
-          Salir
-        </button>
+        <div className="flex items-center gap-2">
+          <Select value={data.currency} onValueChange={(value) => setCurrency(value as Currency)}>
+            <SelectTrigger className="h-8 w-[92px] bg-background text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="MXN">MXN</SelectItem>
+              <SelectItem value="USD">USD</SelectItem>
+            </SelectContent>
+          </Select>
+          <button
+            onClick={() => {
+              logout();
+              router.navigate({ to: "/auth" });
+            }}
+            className="text-sm text-muted-foreground"
+          >
+            Salir
+          </button>
+        </div>
       </header>
 
       {/* Mobile bottom nav */}
@@ -95,7 +139,14 @@ function AppLayout() {
           const active = location.pathname.startsWith(item.to);
           const Icon = item.icon;
           return (
-            <Link key={item.to} to={item.to} className={cn("flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px]", active ? "text-primary" : "text-muted-foreground")}>
+            <Link
+              key={item.to}
+              to={item.to}
+              className={cn(
+                "flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px]",
+                active ? "text-primary" : "text-muted-foreground",
+              )}
+            >
               <Icon className="h-5 w-5" />
               {item.label.split(" ")[0]}
             </Link>

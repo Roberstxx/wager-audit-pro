@@ -1,6 +1,15 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { useAuth } from "./auth";
-import type { Bet, Transaction, UserData } from "./types";
+import { DEFAULT_CURRENCY } from "./bet-utils";
+import type { Bet, Currency, Transaction, UserData } from "./types";
 import { getUserData, saveUserData } from "./storage";
 
 interface DataCtx {
@@ -10,6 +19,7 @@ interface DataCtx {
   deleteBet: (id: string) => void;
   addTransaction: (t: Omit<Transaction, "id">) => void;
   deleteTransaction: (id: string) => void;
+  setCurrency: (currency: Currency) => void;
   resetAll: () => void;
 }
 
@@ -17,27 +27,51 @@ const Ctx = createContext<DataCtx | null>(null);
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [data, setData] = useState<UserData>({ bets: [], transactions: [] });
+  const [data, setData] = useState<UserData>({
+    bets: [],
+    transactions: [],
+    currency: DEFAULT_CURRENCY,
+  });
 
   useEffect(() => {
     if (user) setData(getUserData(user.id));
-    else setData({ bets: [], transactions: [] });
+    else setData({ bets: [], transactions: [], currency: DEFAULT_CURRENCY });
   }, [user]);
 
-  const persist = useCallback((next: UserData) => {
-    setData(next);
-    if (user) saveUserData(user.id, next);
-  }, [user]);
+  const persist = useCallback(
+    (next: UserData) => {
+      setData(next);
+      if (user) saveUserData(user.id, next);
+    },
+    [user],
+  );
 
-  const api = useMemo<DataCtx>(() => ({
-    data,
-    addBet: (b) => persist({ ...data, bets: [{ ...b, id: crypto.randomUUID(), createdAt: new Date().toISOString() }, ...data.bets] }),
-    updateBet: (id, patch) => persist({ ...data, bets: data.bets.map((x) => x.id === id ? { ...x, ...patch } : x) }),
-    deleteBet: (id) => persist({ ...data, bets: data.bets.filter((x) => x.id !== id) }),
-    addTransaction: (t) => persist({ ...data, transactions: [{ ...t, id: crypto.randomUUID() }, ...data.transactions] }),
-    deleteTransaction: (id) => persist({ ...data, transactions: data.transactions.filter((x) => x.id !== id) }),
-    resetAll: () => persist({ bets: [], transactions: [] }),
-  }), [data, persist]);
+  const api = useMemo<DataCtx>(
+    () => ({
+      data,
+      addBet: (b) =>
+        persist({
+          ...data,
+          bets: [
+            { ...b, id: crypto.randomUUID(), createdAt: new Date().toISOString() },
+            ...data.bets,
+          ],
+        }),
+      updateBet: (id, patch) =>
+        persist({ ...data, bets: data.bets.map((x) => (x.id === id ? { ...x, ...patch } : x)) }),
+      deleteBet: (id) => persist({ ...data, bets: data.bets.filter((x) => x.id !== id) }),
+      addTransaction: (t) =>
+        persist({
+          ...data,
+          transactions: [{ ...t, id: crypto.randomUUID() }, ...data.transactions],
+        }),
+      deleteTransaction: (id) =>
+        persist({ ...data, transactions: data.transactions.filter((x) => x.id !== id) }),
+      setCurrency: (currency) => persist({ ...data, currency }),
+      resetAll: () => persist({ bets: [], transactions: [], currency: data.currency }),
+    }),
+    [data, persist],
+  );
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }

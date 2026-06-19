@@ -29,7 +29,10 @@ export interface User {
   createdAt: string;
 }
 
+export type Currency = "MXN" | "USD";
+
 export interface UserData {
   bets: Bet[];
   transactions: Transaction[];
+  currency: Currency;
 }

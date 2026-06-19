@@ -1,7 +1,23 @@
-import type { Bet, Transaction } from "./types";
+import type { Bet, Currency, Transaction } from "./types";
 
-export const fmt = (n: number) =>
-  new Intl.NumberFormat("es-ES", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(n || 0);
+export const DEFAULT_CURRENCY: Currency = "MXN";
+
+export const currencyLabels: Record<Currency, string> = {
+  MXN: "Pesos mexicanos",
+  USD: "Dólares estadounidenses",
+};
+
+export const currencySymbols: Record<Currency, string> = {
+  MXN: "$",
+  USD: "US$",
+};
+
+export const fmt = (n: number, currency: Currency = DEFAULT_CURRENCY) =>
+  new Intl.NumberFormat(currency === "MXN" ? "es-MX" : "en-US", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 2,
+  }).format(n || 0);
 
 export const fmtPct = (n: number) => `${(n || 0).toFixed(2)}%`;
 
@@ -31,10 +47,14 @@ export interface Metrics {
 
 export function computeMetrics(bets: Bet[], txs: Transaction[]): Metrics {
   const totalDeposited = txs.filter((t) => t.type === "deposit").reduce((s, t) => s + t.amount, 0);
-  const totalWithdrawn = txs.filter((t) => t.type === "withdrawal").reduce((s, t) => s + t.amount, 0);
-  const initialCapital = totalDeposited > 0
-    ? txs.filter((t) => t.type === "deposit").sort((a, b) => a.date.localeCompare(b.date))[0].amount
-    : 0;
+  const totalWithdrawn = txs
+    .filter((t) => t.type === "withdrawal")
+    .reduce((s, t) => s + t.amount, 0);
+  const initialCapital =
+    totalDeposited > 0
+      ? txs.filter((t) => t.type === "deposit").sort((a, b) => a.date.localeCompare(b.date))[0]
+          .amount
+      : 0;
 
   const settled = bets.filter((b) => b.status !== "pending");
   const totalStaked = settled.reduce((s, b) => s + b.stake, 0);
@@ -62,19 +82,36 @@ export function computeMetrics(bets: Bet[], txs: Transaction[]): Metrics {
   }
 
   return {
-    totalDeposited, totalWithdrawn, initialCapital, totalStaked,
-    netProfit, currentBalance, roi, wonCount, lostCount, pendingCount,
-    winRate, maxBalance, drawdown, drawdownPct, losingStreak: streak,
+    totalDeposited,
+    totalWithdrawn,
+    initialCapital,
+    totalStaked,
+    netProfit,
+    currentBalance,
+    roi,
+    wonCount,
+    lostCount,
+    pendingCount,
+    winRate,
+    maxBalance,
+    drawdown,
+    drawdownPct,
+    losingStreak: streak,
   };
 }
 
-export interface SeriesPoint { date: string; balance: number; }
+export interface SeriesPoint {
+  date: string;
+  balance: number;
+}
 
 export function buildBalanceSeries(bets: Bet[], txs: Transaction[]): SeriesPoint[] {
   type Ev = { date: string; delta: number };
   const events: Ev[] = [];
-  for (const t of txs) events.push({ date: t.date, delta: t.type === "deposit" ? t.amount : -t.amount });
-  for (const b of bets) if (b.status !== "pending") events.push({ date: b.date, delta: betProfit(b) });
+  for (const t of txs)
+    events.push({ date: t.date, delta: t.type === "deposit" ? t.amount : -t.amount });
+  for (const b of bets)
+    if (b.status !== "pending") events.push({ date: b.date, delta: betProfit(b) });
   events.sort((a, b) => a.date.localeCompare(b.date));
   const out: SeriesPoint[] = [];
   let bal = 0;
@@ -85,19 +122,27 @@ export function buildBalanceSeries(bets: Bet[], txs: Transaction[]): SeriesPoint
   return out;
 }
 
-export function monthlyResults(bets: Bet[]): { month: string; profit: number; loss: number; net: number }[] {
+export function monthlyResults(
+  bets: Bet[],
+): { month: string; profit: number; loss: number; net: number }[] {
   const map = new Map<string, { profit: number; loss: number }>();
   for (const b of bets) {
     if (b.status === "pending") continue;
     const m = b.date.slice(0, 7);
     const cur = map.get(m) ?? { profit: 0, loss: 0 };
     const p = betProfit(b);
-    if (p >= 0) cur.profit += p; else cur.loss += -p;
+    if (p >= 0) cur.profit += p;
+    else cur.loss += -p;
     map.set(m, cur);
   }
-  return [...map.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([month, v]) => ({
-    month, profit: Math.round(v.profit * 100) / 100, loss: Math.round(v.loss * 100) / 100, net: Math.round((v.profit - v.loss) * 100) / 100,
-  }));
+  return [...map.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, v]) => ({
+      month,
+      profit: Math.round(v.profit * 100) / 100,
+      loss: Math.round(v.loss * 100) / 100,
+      net: Math.round((v.profit - v.loss) * 100) / 100,
+    }));
 }
 
 export function statsByType(bets: Bet[], type: "simple" | "parlay") {
@@ -113,6 +158,14 @@ export function statsByType(bets: Bet[], type: "simple" | "parlay") {
 
 export function exportCSV(bets: Bet[]) {
   const headers = ["date", "event", "type", "stake", "odds", "status", "profit"];
-  const rows = bets.map((b) => [b.date, `"${b.event.replace(/"/g, '""')}"`, b.type, b.stake, b.odds, b.status, betProfit(b)]);
+  const rows = bets.map((b) => [
+    b.date,
+    `"${b.event.replace(/"/g, '""')}"`,
+    b.type,
+    b.stake,
+    b.odds,
+    b.status,
+    betProfit(b),
+  ]);
   return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
 }

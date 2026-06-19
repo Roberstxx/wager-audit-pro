@@ -58,6 +58,19 @@ function BetsPage() {
   const [fFrom, setFFrom] = useState("");
   const [fTo, setFTo] = useState("");
 
+  const previewStake = parseFloat(form.stake);
+  const previewOdds = parseFloat(form.odds);
+  const hasPreview = previewStake > 0 && previewOdds > 1;
+  const potentialReturn = hasPreview ? previewStake * previewOdds : 0;
+  const winningProfit = hasPreview ? potentialReturn - previewStake : 0;
+  const resolvedPreview = hasPreview
+    ? form.status === "won"
+      ? winningProfit
+      : form.status === "lost"
+        ? -previewStake
+        : 0
+    : 0;
+
   const openNew = () => {
     setEditing(null);
     setForm(empty);
@@ -213,23 +226,43 @@ function BetsPage() {
                       <SelectContent>
                         <SelectItem value="pending">Pendiente</SelectItem>
                         <SelectItem value="won">Ganada</SelectItem>
-                        <SelectItem value="lost">Perdida</SelectItem>
+                        <SelectItem value="lost">No ganadora / Perdida</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
-                {form.stake && form.odds && (
-                  <div className="rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">
-                    Retorno potencial:{" "}
-                    <span className="font-medium text-foreground">
-                      {money(parseFloat(form.stake) * parseFloat(form.odds))}
-                    </span>
-                    {" · "}Ganancia neta si gana:{" "}
-                    <span className="font-medium text-[color:var(--profit)]">
-                      {money(
-                        parseFloat(form.stake) * parseFloat(form.odds) - parseFloat(form.stake),
-                      )}
-                    </span>
+                {hasPreview && (
+                  <div className="space-y-2 rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">
+                    <p>
+                      Pago potencial:{" "}
+                      <span className="font-medium text-foreground">{money(potentialReturn)}</span>
+                      {" · "}Ganancia neta si gana:{" "}
+                      <span className="font-medium text-[color:var(--profit)]">
+                        {money(winningProfit)}
+                      </span>
+                    </p>
+                    {form.status === "lost" ? (
+                      <p>
+                        Ticket no ganador: se descuenta la entrada/stake, no el pago potencial. P/L:{" "}
+                        <span className="font-medium text-[color:var(--loss)]">
+                          {money(resolvedPreview)}
+                        </span>
+                      </p>
+                    ) : form.status === "won" ? (
+                      <p>
+                        Ticket ganador: se registra la ganancia neta. P/L:{" "}
+                        <span className="font-medium text-[color:var(--profit)]">
+                          +{money(resolvedPreview)}
+                        </span>
+                      </p>
+                    ) : (
+                      <p>
+                        Si Drafttea dice{" "}
+                        <span className="font-medium text-foreground">NO GANADOR</span>, cambia el
+                        estado a <span className="font-medium text-foreground">No ganadora</span>
+                        para que cuadre como pérdida de {money(previewStake)}.
+                      </p>
+                    )}
                   </div>
                 )}
                 <DialogFooter>
@@ -272,7 +305,7 @@ function BetsPage() {
           <SelectContent>
             <SelectItem value="all">Todos los estados</SelectItem>
             <SelectItem value="won">Ganadas</SelectItem>
-            <SelectItem value="lost">Perdidas</SelectItem>
+            <SelectItem value="lost">No ganadoras / Perdidas</SelectItem>
             <SelectItem value="pending">Pendientes</SelectItem>
           </SelectContent>
         </Select>
@@ -325,7 +358,7 @@ function BetsPage() {
                         {b.status === "won"
                           ? "Ganada"
                           : b.status === "lost"
-                            ? "Perdida"
+                            ? "No ganadora"
                             : "Pendiente"}
                       </span>
                     </td>
